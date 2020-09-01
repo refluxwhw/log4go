@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	FORMAT_DEFAULT = "[%D %T] [%L] (%S) %M"
+	FORMAT_DEFAULT = "[%D %T.%Z] [%L] (%S) %M"
 	FORMAT_SHORT   = "[%t %d] [%L] %M"
 	FORMAT_ABBREV  = "[%L] %M"
 )
@@ -20,15 +20,19 @@ type formatCacheType struct {
 	LastUpdateSeconds    int64
 	shortTime, shortDate string
 	longTime, longDate   string
+	zone                 string
 }
 
 var formatCache = &formatCacheType{}
 
 // Known format codes:
-// %T - Time (15:04:05 MST)
+// %T - Time (15:04:05)
 // %t - Time (15:04)
 // %D - Date (2006/01/02)
 // %d - Date (01/02/06)
+// %Z - Zone (MST)
+// %U - millisecond (000)
+// %u - microsecond (000000)
 // %L - Level (FNST, FINE, DEBG, TRAC, WARN, EROR, CRIT)
 // %S - Source
 // %M - Message
@@ -54,8 +58,9 @@ func FormatLogRecord(format string, rec *LogRecord) string {
 			LastUpdateSeconds: secs,
 			shortTime:         fmt.Sprintf("%02d:%02d", hour, minute),
 			shortDate:         fmt.Sprintf("%02d/%02d/%02d", day, month, year%100),
-			longTime:          fmt.Sprintf("%02d:%02d:%02d %s", hour, minute, second, zone),
+			longTime:          fmt.Sprintf("%02d:%02d:%02d", hour, minute, second),
 			longDate:          fmt.Sprintf("%04d/%02d/%02d", year, month, day),
+			zone:              zone,
 		}
 		cache = *updated
 		formatCache = updated
@@ -78,6 +83,12 @@ func FormatLogRecord(format string, rec *LogRecord) string {
 				out.WriteString(cache.longDate)
 			case 'd':
 				out.WriteString(cache.shortDate)
+			case 'Z':
+				out.WriteString(cache.zone)
+			case 'U':
+				out.WriteString(fmt.Sprintf("%03d", rec.Created.UnixNano() / 1e6 % 1e3))
+			case 'u':
+				out.WriteString(fmt.Sprintf("%06d", rec.Created.UnixNano() / 1e3 % 1e6))
 			case 'L':
 				out.WriteString(levelStrings[rec.Level])
 			case 'S':
