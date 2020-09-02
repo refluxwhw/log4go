@@ -8,13 +8,9 @@ import (
 	"io"
 	"regexp"
 	"strings"
+	"time"
 )
 
-const (
-	FORMAT_DEFAULT = "[%D %T.%Z] [%L] (%S) %M"
-	FORMAT_SHORT   = "[%t %d] [%L] %M"
-	FORMAT_ABBREV  = "[%L] %M"
-)
 
 type formatCacheType struct {
 	LastUpdateSeconds    int64
@@ -25,6 +21,20 @@ type formatCacheType struct {
 
 var formatCache = &formatCacheType{}
 
+// format the time, and remove format bytes
+// "F(2006-01-02 15:04:05.000)] " ==> "F] "
+func timeFormat(t time.Time, f []byte) string {
+	// Mon Jan 2 15:04:05 -0700 MST 2006
+	format := "2006-01-02 15:04:05.000"
+	if '(' == f[1] {
+		if i := strings.Index(string(f), ")"); i > 0 {
+			format = string(f[2:i])
+			f = append([]byte("F"), f[i+1:]...)
+		}
+	}
+	return t.Format(format)
+}
+
 // Known format codes:
 // %T - Time (15:04:05)
 // %t - Time (15:04)
@@ -33,6 +43,7 @@ var formatCache = &formatCacheType{}
 // %Z - Zone (MST)
 // %U - millisecond (000)
 // %u - microsecond (000000)
+// %F - Formatted datetime, for example %F(2006-01-03 15:04:05.000), there should be
 // %L - Level (FNST, FINE, DEBG, TRAC, WARN, EROR, CRIT)
 // %S - Source
 // %M - Message
@@ -89,6 +100,8 @@ func FormatLogRecord(format string, rec *LogRecord) string {
 				out.WriteString(fmt.Sprintf("%03d", rec.Created.UnixNano() / 1e6 % 1e3))
 			case 'u':
 				out.WriteString(fmt.Sprintf("%06d", rec.Created.UnixNano() / 1e3 % 1e6))
+			case 'F':
+				out.WriteString(timeFormat(rec.Created, piece))
 			case 'L':
 				out.WriteString(levelStrings[rec.Level])
 			case 'S':
