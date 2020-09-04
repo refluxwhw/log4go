@@ -41,7 +41,7 @@ type FileLogWriter struct {
 	maxbackup int
 
 	// Sanitize newlines to prevent log injection
-	sanitize	bool
+	sanitize bool
 }
 
 // This is the FileLogWriter's output method
